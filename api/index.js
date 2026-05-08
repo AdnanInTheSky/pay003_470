@@ -8,8 +8,8 @@ const MONGO_URI      = process.env.MONGO_URI || "mongodb://localhost:27017";
 const MERCHANT_ID    = process.env.MERCHANT_ID;
 const PASSWORD       = process.env.PAYSTATION_PASSWORD;
 const BASE_URL       = process.env.BASE_URL || "http://localhost:3000";
-const PAY_URL        = "https://api.paystation.com.bd/initiate-payment";
-const STATUS_URL     = "https://api.paystation.com.bd/transaction-status";
+const PAY_URL        = "https://sandbox.paystation.com.bd/initiate-payment";
+const STATUS_URL     = "https://sandbox.paystation.com.bd/transaction-status";
 
 // ─── PRODUCTS (backend price authority — never trust client prices) ──────────
 // The UI catalog lives in public/products.js. This copy is used ONLY for
