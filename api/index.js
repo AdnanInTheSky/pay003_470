@@ -4,18 +4,14 @@ const https = require("https");
 const querystring = require("querystring");
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const MONGO_URI      = process.env.MONGO_URI || "mongodb://localhost:27017";
-const MERCHANT_ID    = process.env.MERCHANT_ID;
-const PASSWORD       = process.env.PAYSTATION_PASSWORD;
-const BASE_URL       = process.env.BASE_URL || "http://localhost:3000";
-const PAY_URL        = "https://sandbox.paystation.com.bd/initiate-payment";
-const STATUS_URL     = "https://sandbox.paystation.com.bd/transaction-status";
+const MONGO_URI   = process.env.MONGO_URI;
+const MERCHANT_ID = process.env.MERCHANT_ID;
+const PASSWORD    = process.env.PAYSTATION_PASSWORD;
+const BASE_URL    = process.env.BASE_URL;
+const PAY_URL     = "https://sandbox.paystation.com.bd/initiate-payment";
+const STATUS_URL  = "https://sandbox.paystation.com.bd/transaction-status";
 
-// ─── PRODUCTS (backend price authority — never trust client prices) ──────────
-// The UI catalog lives in public/products.js. This copy is used ONLY for
-// server-side price verification. Any price sent by the client is ignored;
-// totals are always recalculated here before calling PayStation.
-// Keep both files in sync when updating prices.
+// ─── PRODUCTS (server is price authority) ─────────────────────────────────
 const PRODUCTS = {
   p1: { name: "Wireless Earbuds",     price: 5  },
   p2: { name: "Phone Case",           price: 3  },
@@ -25,101 +21,138 @@ const PRODUCTS = {
   p6: { name: "Smart Watch Strap",    price: 28 },
 };
 
-// ─── DB (connection cached across warm invocations) ─────────────────────────
+// ─── MONGODB CACHE (critical for serverless) ─────────────────────────────
 let cachedClient = null;
-async function getDB() {
+async function getOrdersCollection() {
   if (!cachedClient) {
-    cachedClient = new MongoClient(MONGO_URI, { serverSelectionTimeoutMS: 5000 });
+    cachedClient = new MongoClient(MONGO_URI);
     await cachedClient.connect();
   }
   return cachedClient.db("paystation_demo").collection("orders");
 }
 
-// ─── PRICE ENGINE ──────────────────────────────────────────────────────────
-function calc(items) {
+// ─── SAFE JSON BODY PARSER (Vercel raw Node) ─────────────────────────────
+function parseJSON(req) {
+  return new Promise((resolve) => {
+    let data = "";
+    req.on("data", (chunk) => (data += chunk));
+    req.on("end", () => {
+      try { resolve(JSON.parse(data)); }
+      catch { resolve({}); }
+    });
+  });
+}
+
+// ─── PRICE ENGINE ─────────────────────────────────────────────────────────
+function calculateCart(items) {
   let total = 0;
   const lineItems = [];
+
   for (const i of items) {
     const pid = i.id;
     const qty = parseInt(i.qty, 10);
-    if (!PRODUCTS[pid] || isNaN(qty) || qty < 1 || qty > 10)
-      throw new Error(`Invalid product or quantity: ${pid}`);
-    const product = PRODUCTS[pid];
-    const subtotal = product.price * qty;
+
+    if (!PRODUCTS[pid] || isNaN(qty) || qty < 1 || qty > 10) {
+      throw new Error(`Invalid product/qty: ${pid}`);
+    }
+
+    const p = PRODUCTS[pid];
+    const subtotal = p.price * qty;
+
     total += subtotal;
-    lineItems.push({ id: pid, name: product.name, price: product.price, qty, subtotal });
+    lineItems.push({
+      id: pid,
+      name: p.name,
+      price: p.price,
+      qty,
+      subtotal,
+    });
   }
-  if (total <= 0) throw new Error("Cart is empty");
+
+  if (total <= 0) throw new Error("Empty cart");
   return { total, lineItems };
 }
 
-// ─── HTTP HELPER ───────────────────────────────────────────────────────────
-function postForm(url, data, extraHeaders = {}) {
+// ─── HTTP POST HELPER ─────────────────────────────────────────────────────
+function postForm(url, data, headers = {}) {
   return new Promise((resolve, reject) => {
     const body = querystring.stringify(data);
-    const parsed = new URL(url);
-    const options = {
-      hostname: parsed.hostname,
-      path: parsed.pathname,
+    const u = new URL(url);
+
+    const req = https.request({
+      hostname: u.hostname,
+      path: u.pathname,
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         "Content-Length": Buffer.byteLength(body),
-        ...extraHeaders,
+        ...headers,
       },
-    };
-    const req = https.request(options, (res) => {
+    }, (res) => {
       let raw = "";
       res.on("data", (d) => (raw += d));
       res.on("end", () => {
-        try { resolve(JSON.parse(raw)); } catch { resolve({}); }
+        try { resolve(JSON.parse(raw)); }
+        catch { resolve({}); }
       });
     });
+
     req.on("error", reject);
-    req.setTimeout(10000, () => { req.destroy(); reject(new Error("Timeout")); });
     req.write(body);
     req.end();
   });
 }
 
-// ─── CORS HEADERS ──────────────────────────────────────────────────────────
-function cors(res) {
+// ─── CORS ─────────────────────────────────────────────────────────────────
+function setCORS(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
-function json(res, status, data) {
-  cors(res);
-  res.status(status).json(data);
+function sendJSON(res, code, data) {
+  setCORS(res);
+  res.statusCode = code;
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify(data));
 }
 
-// ─── MAIN HANDLER (Vercel serverless) ──────────────────────────────────────
-module.exports = async function handler(req, res) {
-  cors(res);
+// ─── MAIN HANDLER ─────────────────────────────────────────────────────────
+module.exports = async (req, res) => {
+  setCORS(res);
 
-  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method === "OPTIONS") {
+    res.statusCode = 200;
+    return res.end();
+  }
 
   const url = req.url.split("?")[0];
 
-  // ── POST /api/create-order ─────────────────────────────────────────────
-  if (req.method === "POST" && url === "/api/create-order") {
-    try {
-      const { name = "", email = "", phone = "", address = "", items = [] } = req.body || {};
+  try {
+    // ── CREATE ORDER ────────────────────────────────────────────────────
+    if (req.method === "POST" && url === "/api/create-order") {
+      const body = await parseJSON(req);
 
-      if (![name, email, phone, address].every((v) => String(v).trim()))
-        return json(res, 400, { error: "All customer fields are required" });
+      const { name, email, phone, address, items } = body;
 
-      if (!items.length)
-        return json(res, 400, { error: "Cart is empty" });
+      if (![name, email, phone, address].every(Boolean)) {
+        return sendJSON(res, 400, { error: "Missing customer info" });
+      }
 
-      const { total: amount, lineItems } = calc(items);
+      if (!Array.isArray(items) || items.length === 0) {
+        return sendJSON(res, 400, { error: "Cart empty" });
+      }
+
+      const { total, lineItems } = calculateCart(items);
       const invoice = uuidv4();
 
-      const orders = await getDB();
+      const orders = await getOrdersCollection();
       await orders.insertOne({
-        invoice, items: lineItems, amount, status: "initiated", verified: false,
-        customer: { name, email, phone, address },
+        invoice,
+        items: lineItems,
+        amount: total,
+        status: "initiated",
+        verified: false,
         createdAt: new Date(),
       });
 
@@ -128,74 +161,63 @@ module.exports = async function handler(req, res) {
         password: PASSWORD,
         invoice_number: invoice,
         currency: "BDT",
-        payment_amount: amount,
+        payment_amount: total,
         cust_name: name,
         cust_phone: phone,
         cust_email: email,
         cust_address: address,
         callback_url: `${BASE_URL}/api/payment-callback`,
-        checkout_items: JSON.stringify(lineItems.map((i) => i.name)),
+        checkout_items: JSON.stringify(lineItems.map(i => i.name)),
       });
 
       if (ps.status === "success" && ps.payment_url) {
-        return json(res, 200, { payment_url: ps.payment_url, invoice });
+        return sendJSON(res, 200, { payment_url: ps.payment_url });
       }
 
       await orders.updateOne({ invoice }, { $set: { status: "failed" } });
-      return json(res, 400, { error: ps.message || "Payment initiation failed" });
-
-    } catch (e) {
-      console.error(e);
-      return json(res, e.message?.includes("Invalid") ? 400 : 500, {
-        error: e.message || "Server error",
-      });
+      return sendJSON(res, 400, { error: ps.message || "PayStation error" });
     }
-  }
 
-  // ── GET /api/payment-callback ──────────────────────────────────────────
-  if (req.method === "GET" && url === "/api/payment-callback") {
-    const { invoice_number: invoice = "" } = req.query || {};
-    if (!invoice) return res.status(400).send("Bad request");
+    // ── PAYMENT CALLBACK ────────────────────────────────────────────────
+    if (req.method === "GET" && url === "/api/payment-callback") {
+      const invoice = new URL(req.url, `http://${req.headers.host}`)
+        .searchParams.get("invoice_number");
 
-    const orders = await getDB();
-    await orders.updateOne({ invoice }, { $set: { status: "verifying" } });
+      const orders = await getOrdersCollection();
 
-    let trxStatus = "failed";
-    try {
       const r = await postForm(
         STATUS_URL,
         { invoice_number: invoice },
         { merchantId: MERCHANT_ID }
       );
-      trxStatus = r?.data?.trx_status || "failed";
-    } catch { /* keep failed */ }
 
-    const success = ["success", "successful"].includes(trxStatus.toLowerCase());
-    await orders.updateOne({ invoice }, {
-      $set: { status: success ? "success" : trxStatus, verified: true },
-    });
+      const trx = r?.data?.trx_status || "failed";
+      const success = ["success", "successful"].includes(trx.toLowerCase());
 
-    const qs = success
-      ? `invoice_number=${invoice}&status=Success`
-      : `invoice_number=${invoice}`;
+      await orders.updateOne({ invoice }, {
+        $set: { status: success ? "success" : "failed", verified: true }
+      });
 
-    return res.redirect(302, success ? `/?success=1&${qs}` : `/?failed=1&${qs}`);
+      res.statusCode = 302;
+      res.setHeader("Location", success ? "/?success=1" : "/?failed=1");
+      return res.end();
+    }
+
+    // ── ORDER STATUS ────────────────────────────────────────────────────
+    if (req.method === "GET" && url.startsWith("/api/order-status/")) {
+      const invoice = url.split("/").pop();
+      const orders = await getOrdersCollection();
+      const order = await orders.findOne({ invoice }, { projection: { _id: 0 } });
+
+      if (!order) return sendJSON(res, 404, { error: "Not found" });
+
+      return sendJSON(res, 200, order);
+    }
+
+    return sendJSON(res, 404, { error: "Route not found" });
+
+  } catch (err) {
+    console.error(err);
+    return sendJSON(res, 500, { error: err.message });
   }
-
-  // ── GET /api/order-status/:invoice ────────────────────────────────────
-  const statusMatch = url.match(/^\/api\/order-status\/([^/]+)$/);
-  if (req.method === "GET" && statusMatch) {
-    const invoice = statusMatch[1];
-    const orders = await getDB();
-    const order = await orders.findOne({ invoice }, { projection: { _id: 0 } });
-    if (!order) return json(res, 404, { error: "Not found" });
-    return json(res, 200, {
-      status: order.status,
-      verified: order.verified,
-      amount: order.amount,
-      customer: order.customer?.name,
-    });
-  }
-
-  return json(res, 404, { error: "Not found" });
 };
