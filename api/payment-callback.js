@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     }
 
     const r = await axios.post(
-      "https://api.paystation.com.bd/transaction-status",
+      "https://sandbox.paystation.com.bd/transaction-status",
       { invoice_number: invoice },
       {
         headers: {

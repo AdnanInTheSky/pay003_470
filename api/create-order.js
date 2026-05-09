@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     };
 
     const ps = await axios.post(
-      "https://api.paystation.com.bd/initiate-payment",
+      "https://sandbox.paystation.com.bd/initiate-payment",
       payload,
       { timeout: 10000 }
     );
