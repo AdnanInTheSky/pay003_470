@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Shop</title>
+
+  <style>
+    body { font-family: Arial; margin:0; background:#f5f5f5; }
+    header { background:#111; color:#fff; padding:15px; }
+    .container { max-width:1000px; margin:auto; padding:20px; }
+
+    .grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+      gap:15px;
+    }
+
+    .card {
+      background:#fff;
+      padding:15px;
+      border-radius:8px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    button {
+      padding:8px 12px;
+      border:none;
+      background:#111;
+      color:#fff;
+      cursor:pointer;
+      border-radius:5px;
+    }
+
+    #cartBox {
+      margin-top:25px;
+      background:#fff;
+      padding:15px;
+      border-radius:8px;
+    }
+
+    input {
+      width:100%;
+      margin:6px 0;
+      padding:10px;
+      border:1px solid #ddd;
+      border-radius:5px;
+    }
+
+    .row {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+
+    .small { font-size:14px; color:#444; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  Simple Vercel Shop
+</header>
+
+<div class="container">
+
+  <h2>Products</h2>
+  <div id="products" class="grid"></div>
+
+  <div id="cartBox">
+    <h3>Cart</h3>
+    <div id="cartList"></div>
+
+    <hr>
+
+    <h3>Checkout</h3>
+
+    <div class="row">
+      <input id="name" placeholder="Name">
+      <input id="email" placeholder="Email">
+    </div>
+
+    <div class="row">
+      <input id="phone" placeholder="Phone">
+      <input id="address" placeholder="Address">
+    </div>
+
+    <button onclick="checkout()">Pay Now</button>
+
+    <p class="small" id="status"></p>
+  </div>
+
+</div>
+
+<script>
+const API = "/api"; // Vercel safe (same domain)
+
+let products = [];
+let cart = [];
+
+// -------------------- LOAD PRODUCTS --------------------
+async function loadProducts() {
+  // If you don’t have /api/products, replace with static list
+  products = [
+    { id: "p1", name: "Earbuds", price: 5 },
+    { id: "p2", name: "Phone Case", price: 3 },
+    { id: "p3", name: "Cable", price: 18 },
+    { id: "p4", name: "Power Bank", price: 9 }
+  ];
+
+  const box = document.getElementById("products");
+  box.innerHTML = "";
+
+  for (let i = 0; i < products.length; i++) {
+    const p = products[i];
+
+    const div = document.createElement("div");
+    div.className = "card";
+
+    div.innerHTML = `
+      <h3>${p.name}</h3>
+      <p>৳${p.price}</p>
+    `;
+
+    const btn = document.createElement("button");
+    btn.innerText = "Add";
+    btn.onclick = () => addToCart(p);
+
+    div.appendChild(btn);
+    box.appendChild(div);
+  }
+}
+
+// -------------------- CART --------------------
+function addToCart(p) {
+  cart.push({ id: p.id, qty: 1, name: p.name, price: p.price });
+  renderCart();
+}
+
+function renderCart() {
+  const box = document.getElementById("cartList");
+  box.innerHTML = "";
+
+  let total = 0;
+
+  for (let i = 0; i < cart.length; i++) {
+    const c = cart[i];
+    total += c.price;
+
+    const div = document.createElement("div");
+    div.innerText = `${c.name} - ৳${c.price}`;
+    box.appendChild(div);
+  }
+
+  const totalDiv = document.createElement("h4");
+  totalDiv.innerText = "Total: ৳" + total;
+  box.appendChild(totalDiv);
+}
+
+// -------------------- CHECKOUT (YOUR API) --------------------
+async function checkout() {
+  const name = document.getElementById("name").value;
+  const email = document.getElementById("email").value;
+  const phone = document.getElementById("phone").value;
+  const address = document.getElementById("address").value;
+
+  const status = document.getElementById("status");
+
+  if (!name || !email || !phone || !address) {
+    status.innerText = "Fill all fields";
+    return;
+  }
+
+  if (cart.length === 0) {
+    status.innerText = "Cart empty";
+    return;
+  }
+
+  try {
+    status.innerText = "Processing...";
+
+    const res = await fetch(API + "/create-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        email,
+        phone,
+        address,
+        items: cart
+      })
+    });
+
+    const data = await res.json();
+
+    if (data.payment_url) {
+      window.location.href = data.payment_url;
+    } else {
+      status.innerText = data.error || "Payment failed";
+    }
+
+  } catch (err) {
+    console.log(err);
+    status.innerText = "Server error";
+  }
+}
+
+loadProducts();
+</script>
+
+</body>
+</html>
