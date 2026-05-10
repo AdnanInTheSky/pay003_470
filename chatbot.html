@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+        .msg { animation: slideIn 0.2s ease-out; }
+        .dot { animation: bounce 1.4s infinite; }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+        .chat::-webkit-scrollbar { width: 4px; }
+        .chat::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-200 h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl flex flex-col h-[600px]">
+        
+        <!-- Header -->
+        <div class="bg-indigo-600 text-white px-5 py-4 rounded-t-2xl flex items-center gap-3">
+            <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-xl">🤖</div>
+            <div>
+                <h1 class="font-bold text-sm">Product Bot</h1>
+                <p class="text-xs text-indigo-200">Ask me anything</p>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        <div id="chat" class="chat flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+            <div class="msg flex gap-2">
+                <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-sm shrink-0">🤖</div>
+                <div class="bg-white border border-slate-200 rounded-xl rounded-tl-sm px-3 py-2 text-sm text-slate-700 max-w-[80%]">
+                    Hi! Ask me about products. Try "price of p1" or "what do you have?"
+                </div>
+            </div>
+        </div>
+
+        <!-- Typing -->
+        <div id="typing" class="hidden px-4 pb-2">
+            <div class="flex gap-2 items-end">
+                <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-sm shrink-0">🤖</div>
+                <div class="bg-white border border-slate-200 rounded-xl rounded-tl-sm px-3 py-2 flex gap-1 h-8 items-center">
+                    <span class="w-1.5 h-1.5 bg-slate-400 rounded-full dot"></span>
+                    <span class="w-1.5 h-1.5 bg-slate-400 rounded-full dot"></span>
+                    <span class="w-1.5 h-1.5 bg-slate-400 rounded-full dot"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input -->
+        <div class="p-3 bg-white border-t border-slate-100 rounded-b-2xl">
+            <div class="flex gap-2">
+                <input id="input" type="text" placeholder="Type here..." 
+                    class="flex-1 px-4 py-2 bg-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    onkeydown="if(event.key==='Enter') send()">
+                <button onclick="send()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
