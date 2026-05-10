@@ -6,7 +6,7 @@
 //   4. Every DB write is awaited before returning (Vercel lambda safety)
 
 const { getDb }  = require("./_db");
-const { randomBytes } = require("crypto");
+const { ObjectId } = require("mongodb");  // ObjectId = 12-byte guaranteed unique
 
 // ── Product catalog (single source of truth — lives only on the server) ──────
 const PRODUCTS = {
@@ -26,8 +26,9 @@ const BASE = process.env.PAYSTATION_ENV === "live"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function generateInvoice() {
-  // e.g. INV-a3f9c2-1718200000000  — unpredictable, non-replayable
-  return "INV-" + randomBytes(4).toString("hex") + "-" + Date.now();
+  // ObjectId: 4-byte timestamp + 5-byte random + 3-byte incrementing counter
+  // Guaranteed unique by design — same mechanism MongoDB uses for _id
+  return "INV-" + new ObjectId().toHexString();
 }
 
 function calcTotal(items) {
@@ -118,11 +119,13 @@ module.exports = async function handler(req, res) {
       await ordersCol.insertOne(orderDoc);
     } catch (err) {
       if (err.code === 11000) {
-        // Extremely unlikely with crypto invoice, but handle it
-        return res.status(500).json({ error: "Invoice collision — please try again" });
+        // Duplicate key — log so we can see what invoice is colliding, then continue
+        console.error("Duplicate key error, invoice:", invoice_number, err.message);
+        // Non-fatal: continue to PayStation rather than blocking the user
+      } else {
+        console.error("MongoDB insertOne error:", err);
+        // Non-fatal: continue to PayStation
       }
-      console.error("MongoDB insertOne error:", err);
-      // Non-fatal: continue to PayStation
     }
   }
 
