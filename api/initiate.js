@@ -90,7 +90,7 @@ module.exports = async function handler(req, res) {
   let ordersCol = null;
   try {
     const client = await getDb();
-    ordersCol = client.db("dhaka_market").collection("orders");
+    ordersCol = client.db("paystation_demo").collection("orders");
   } catch (err) {
     console.error("MongoDB connect error:", err);
   }

@@ -43,7 +43,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const client = await getDb();
-    const ordersCol = client.db("dhaka_market").collection("orders");
+    const ordersCol = client.db("paystation_demo").collection("orders");
 
     await ordersCol.updateOne(
       { invoice_number },

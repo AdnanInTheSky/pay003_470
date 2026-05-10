@@ -1,8 +1,8 @@
 // api/_db.js
 // Shared MongoDB client with connection caching.
-// Vercel serverless functions reuse the same process across warm invocations,
-// so we cache the client on the global object to avoid opening a new connection
-// on every request (the standard recommended pattern for serverless + MongoDB).
+// Always read from global — never use a module-level variable.
+// Module-level vars reset on every cold start, but global persists
+// across warm invocations within the same lambda instance.
 
 const { MongoClient } = require("mongodb");
 
@@ -12,20 +12,16 @@ if (!URI) {
   throw new Error("Missing MONGO_URI environment variable");
 }
 
-// Cache on global so it survives across hot reloads in dev and warm lambdas in prod
-let cached = global._mongoClient;
-
 async function getDb() {
-  if (cached) return cached;
+  if (global._mongoClient) return global._mongoClient;
 
   const client = new MongoClient(URI, {
-    maxPoolSize: 10,          // keep ≤10 connections open
+    maxPoolSize: 10,
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 10000,
   });
 
   await client.connect();
-  cached = client;
   global._mongoClient = client;
 
   return client;
