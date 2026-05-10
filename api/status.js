@@ -1,14 +1,13 @@
 // api/status.js
-// 1. Calls PayStation /transaction-status server-side (credentials stay hidden)
-// 2. Updates the order in MongoDB with the verified status
-// 3. Returns the full PayStation response to the browser
+// Verifies payment status server-side with PayStation.
+// Updates MongoDB order with verified result.
+// All DB writes are awaited before returning — required for Vercel serverless.
 
 const { getDb } = require("./_db");
 
-const BASE =
-  process.env.PAYSTATION_ENV === "live"
-    ? "https://api.paystation.com.bd"
-    : "https://sandbox.paystation.com.bd";
+const BASE = process.env.PAYSTATION_ENV === "live"
+  ? "https://api.paystation.com.bd"
+  : "https://sandbox.paystation.com.bd";
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -21,7 +20,7 @@ module.exports = async function handler(req, res) {
   }
 
   // ── Call PayStation transaction-status ───────────────────────────────────────
-  let psData = null;
+  let psData;
   try {
     const psRes = await fetch(`${BASE}/transaction-status`, {
       method:  "POST",
@@ -37,7 +36,7 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: "Gateway error — could not verify payment" });
   }
 
-  // ── Update order in MongoDB ──────────────────────────────────────────────────
+  // ── Update MongoDB — AWAITED before return ───────────────────────────────────
   const trxStatus = psData?.data?.trx_status || null;
   const trxId     = psData?.data?.trx_id     || null;
   const isSuccess = trxStatus && ["successful", "success"].includes(trxStatus.toLowerCase());
@@ -50,17 +49,17 @@ module.exports = async function handler(req, res) {
       { invoice_number },
       {
         $set: {
-          trx_status:   trxStatus,
-          trx_id:       trxId,
-          status:       isSuccess ? "success" : (trxStatus ? trxStatus.toLowerCase() : "unknown"),
-          verified:     true,
-          updated_at:   new Date(),
+          trx_status:  trxStatus,
+          trx_id:      trxId,
+          status:      isSuccess ? "success" : (trxStatus?.toLowerCase() || "unknown"),
+          verified:    true,
+          updated_at:  new Date(),
         },
       }
     );
   } catch (err) {
-    // DB update failure is non-fatal — we still return the PayStation response
-    console.error("MongoDB update error (status):", err);
+    // Non-fatal: still return PayStation's response to the browser
+    console.error("MongoDB updateOne error (status):", err);
   }
 
   return res.status(200).json(psData);

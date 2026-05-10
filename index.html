@@ -899,6 +899,8 @@
 
   // ──────────────────────────────────────────
   // CHECKOUT — calls /api/initiate serverless fn
+  // Client sends ONLY: items + customer fields.
+  // Server generates invoice, calculates total, sets callback URL.
   // ──────────────────────────────────────────
   async function checkout() {
     const name    = document.getElementById('f-name').value.trim();
@@ -906,7 +908,7 @@
     const phone   = document.getElementById('f-phone').value.trim();
     const address = document.getElementById('f-address').value.trim();
 
-    // Basic validation
+    // Validate
     ['f-name','f-email','f-phone','f-address'].forEach(id => {
       document.getElementById(id).classList.remove('error');
     });
@@ -924,43 +926,42 @@
     btn.disabled = true;
     btn.textContent = '⏳ Connecting to PayStation…';
 
-    // Build a unique invoice number
-    const invoice = 'INV-' + Date.now() + '-' + Math.floor(Math.random() * 9999);
-    const amount  = cartTotal();
-
-    // Checkout items summary for PayStation (plain text)
-    const itemsSummary = Object.entries(cart)
-      .map(([pid, qty]) => `${PRODUCTS[pid].name} x${qty}`)
-      .join(', ');
-
     try {
       const res = await fetch('/api/initiate', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          invoice_number:  invoice,
-          payment_amount:  amount,
-          cust_name:       name,
-          cust_phone:      phone,
-          cust_email:      email,
-          cust_address:    address,
-          checkout_items:  itemsSummary,
-          callback_url:    window.location.origin + '/success?invoice_number=' + invoice,
+          // ✅ No invoice, no amount, no callback_url — server owns those
+          items:       cartItemsPayload(),   // [{ id: "p1", qty: 2 }, ...]
+          cust_name:   name,
+          cust_phone:  phone,
+          cust_email:  email,
+          cust_address: address,
         }),
       });
 
       const data = await res.json();
 
       if (data.payment_url) {
-        // Save order summary to sessionStorage for success page
+        // Server returns the invoice it generated — use that for the success page
+        const invoice = data.invoice_number;
+
+        // Save display-only summary to sessionStorage for success page UI
         sessionStorage.setItem('lastOrder', JSON.stringify({
-          invoice, amount, name,
+          invoice,
+          name,
+          // Amount comes from server's calculation, reflected in PRODUCTS client-side
+          // (display only — not trusted for payment)
+          amount: cartTotal(),
           items: Object.entries(cart).map(([pid, qty]) => ({
-            name: PRODUCTS[pid].name, emoji: PRODUCTS[pid].emoji, qty,
+            name:  PRODUCTS[pid].name,
+            emoji: PRODUCTS[pid].emoji,
+            qty,
             price: PRODUCTS[pid].price,
           })),
         }));
-        window.location.href = data.payment_url; // redirect to PayStation checkout
+
+        window.location.href = data.payment_url;
       } else {
         toast(data.error || 'Payment failed. Please try again.', true);
         btn.disabled = false;
