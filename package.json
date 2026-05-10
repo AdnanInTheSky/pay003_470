@@ -1,11 +1,19 @@
 {
-  "type": "module",
+  "name": "dhaka-market-paystation",
+  "version": "1.0.0",
+  "description": "E-commerce with PayStation BD + MongoDB. Vanilla JS/HTML + Vercel serverless.",
+  "private": true,
   "engines": {
-    "node": "20.x"
+    "node": ">=20"
   },
   "dependencies": {
-    "mongodb": "^6.5.0",
-    "axios": "^1.7.2",
-    "uuid": "^9.0.1"
+    "mongodb": "^6.8.0"
+  },
+  "devDependencies": {
+    "vercel": "^34.0.0"
+  },
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
   }
 }

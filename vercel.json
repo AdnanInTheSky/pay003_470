@@ -1,3 +1,27 @@
 {
-  "version": 2
+  "version": 2,
+  "outputDirectory": "public",
+  "functions": {
+    "api/*.js": {
+      "runtime": "nodejs20.x"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/initiate",
+      "dest": "/api/initiate.js"
+    },
+    {
+      "src": "/api/status",
+      "dest": "/api/status.js"
+    },
+    {
+      "src": "/success",
+      "dest": "/success.html"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
+    }
+  ]
 }

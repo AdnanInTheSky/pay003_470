@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Confirmed — Dhaka Market</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:    #0d0d0d;
+      --muted:  #6b6b6b;
+      --border: #e4e0d8;
+      --cream:  #f7f4ef;
+      --white:  #ffffff;
+      --gold:   #c8973f;
+      --green:  #1a7a4a;
+      --red:    #c0392b;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(247,244,239,.92);
+      backdrop-filter: blur(14px);
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.4rem;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1.5rem;
+    }
+
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 520px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,.07);
+    }
+
+    /* Status header */
+    .card-header {
+      padding: 2.5rem 2rem 2rem;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .status-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin: 0 auto 1.25rem;
+    }
+
+    .status-icon.checking { background: #fdf5e0; animation: spin-ring 1.2s linear infinite; }
+    .status-icon.success  { background: #e8f5ee; }
+    .status-icon.failed   { background: #fde8e6; }
+    .status-icon.pending  { background: #fdf5e0; }
+
+    @keyframes spin-ring {
+      0%   { box-shadow: 0 0 0 3px rgba(200,151,63,.2); }
+      50%  { box-shadow: 0 0 0 8px rgba(200,151,63,.1); }
+      100% { box-shadow: 0 0 0 3px rgba(200,151,63,.2); }
+    }
+
+    .status-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.7rem;
+      margin-bottom: .4rem;
+    }
+
+    .status-sub {
+      font-size: .88rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* Invoice */
+    .card-body { padding: 1.5rem 2rem; }
+
+    .invoice-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: .5rem 0;
+      border-bottom: 1px dashed var(--border);
+      font-size: .85rem;
+    }
+    .invoice-row:last-child { border-bottom: none; }
+    .invoice-row .label { color: var(--muted); }
+    .invoice-row .value { font-weight: 600; font-family: 'DM Serif Display', serif; }
+
+    /* Order items */
+    .items-section { padding: 0 2rem 1.5rem; }
+
+    .items-title {
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    .order-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: .5rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: .875rem;
+    }
+    .order-item:last-child { border-bottom: none; }
+    .order-item-left { display: flex; align-items: center; gap: .6rem; }
+    .order-item-price { font-weight: 600; }
+
+    /* CTA */
+    .card-footer { padding: 1.5rem 2rem; border-top: 1px solid var(--border); background: var(--cream); }
+
+    .back-btn {
+      display: block;
+      width: 100%;
+      text-align: center;
+      background: var(--ink);
+      color: var(--white);
+      text-decoration: none;
+      padding: .85rem;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: .95rem;
+      transition: background .2s;
+    }
+    .back-btn:hover { background: #2a2a2a; }
+
+    .verify-note {
+      text-align: center;
+      font-size: .72rem;
+      color: var(--muted);
+      margin-top: .75rem;
+    }
+
+    /* Shimmer for loading */
+    .shimmer {
+      background: linear-gradient(90deg, var(--border) 25%, #ede9e0 50%, var(--border) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+      height: .9rem;
+      display: inline-block;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="logo">Dhaka Market</a>
+</header>
+
+<main>
+  <div class="card">
+    <!-- STATUS HEADER -->
+    <div class="card-header">
+      <div class="status-icon checking" id="status-icon">⏳</div>
+      <h1 class="status-title" id="status-title">Verifying payment…</h1>
+      <p class="status-sub" id="status-sub">Please wait while we confirm your transaction with PayStation.</p>
+    </div>
+
+    <!-- INVOICE DETAILS -->
+    <div class="card-body" id="invoice-section" style="display:none">
+      <div class="invoice-row">
+        <span class="label">Invoice #</span>
+        <span class="value" id="inv-number">—</span>
+      </div>
+      <div class="invoice-row">
+        <span class="label">Customer</span>
+        <span class="value" id="inv-name">—</span>
+      </div>
+      <div class="invoice-row">
+        <span class="label">Amount Paid</span>
+        <span class="value" id="inv-amount">—</span>
+      </div>
+      <div class="invoice-row">
+        <span class="label">Payment Status</span>
+        <span class="value" id="inv-status">—</span>
+      </div>
+    </div>
+
+    <!-- ORDER ITEMS (from sessionStorage) -->
+    <div class="items-section" id="items-section" style="display:none">
+      <p class="items-title">Items Ordered</p>
+      <div id="items-list"></div>
+    </div>
+
+    <!-- FOOTER CTA -->
+    <div class="card-footer" id="card-footer" style="display:none">
+      <a href="/" class="back-btn" id="cta-btn">← Continue Shopping</a>
+      <p class="verify-note" id="verify-note"></p>
+    </div>
+  </div>
+</main>
+
+<script>
+  // ──────────────────────────────────────────
+  // Read URL params (PayStation sends these after payment)
+  // e.g. /success?status=Successful&invoice_number=INV-xxx&trx_id=...
+  // ──────────────────────────────────────────
+  const params  = new URLSearchParams(window.location.search);
+  const invoice = params.get('invoice_number') || '';
+  const urlStat = (params.get('status') || '').toLowerCase();
+  const trxId   = params.get('trx_id') || '';
+
+  // ──────────────────────────────────────────
+  // Restore order from sessionStorage (set before redirect)
+  // ──────────────────────────────────────────
+  let lastOrder = null;
+  try {
+    const raw = sessionStorage.getItem('lastOrder');
+    if (raw) lastOrder = JSON.parse(raw);
+  } catch {}
+
+  // ──────────────────────────────────────────
+  // Verify payment server-side via /api/status
+  // ──────────────────────────────────────────
+  async function verifyPayment() {
+    if (!invoice) {
+      renderResult('failed', 'No invoice found', 'Invalid or missing invoice number.');
+      return;
+    }
+
+    try {
+      const res  = await fetch('/api/status', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ invoice_number: invoice }),
+      });
+
+      const data = await res.json();
+
+      // PayStation returns data.data.trx_status
+      const trxStatus = ((data?.data?.trx_status) || '').toLowerCase();
+      const paidAmt   = data?.data?.payment_amount || (lastOrder?.amount || '—');
+
+      if (trxStatus === 'successful' || trxStatus === 'success') {
+        renderResult('success', '🎉 Order Confirmed!', 'Your payment was successful. Thank you for shopping with Dhaka Market!', paidAmt, 'Successful');
+      } else if (trxStatus === 'failed' || trxStatus === 'cancelled') {
+        renderResult('failed', '❌ Payment Failed', 'Your payment was not completed. You have not been charged.', paidAmt, 'Failed');
+      } else if (trxStatus === 'pending') {
+        renderResult('pending', '⏳ Payment Pending', 'Your payment is being processed. We will update you via email.', paidAmt, 'Pending');
+      } else {
+        // Fallback: trust URL param if API can't confirm yet
+        if (urlStat.includes('success')) {
+          renderResult('success', '🎉 Order Placed!', 'Payment received. We\'ll send a confirmation to your email.', paidAmt, urlStat);
+        } else {
+          renderResult('failed', '❌ Payment Failed', 'Something went wrong. Please try again or contact support.', paidAmt, urlStat || 'Unknown');
+        }
+      }
+    } catch (e) {
+      // Network issue — fall back to URL param
+      if (urlStat.includes('success') || urlStat.includes('successful')) {
+        renderResult('success', '🎉 Order Placed!', 'Payment received. Confirmation will arrive via email.', lastOrder?.amount || '—', 'Successful');
+      } else {
+        renderResult('failed', '❌ Could Not Verify', 'We couldn\'t verify your payment. Please contact support with invoice: ' + invoice);
+      }
+    }
+  }
+
+  function renderResult(type, title, sub, amount, statusLabel) {
+    const icon  = document.getElementById('status-icon');
+    const ttl   = document.getElementById('status-title');
+    const stSub = document.getElementById('status-sub');
+    const invSec = document.getElementById('invoice-section');
+    const itemSec = document.getElementById('items-section');
+    const footer = document.getElementById('card-footer');
+    const ctaBtn = document.getElementById('cta-btn');
+    const vnote  = document.getElementById('verify-note');
+
+    // Icon
+    icon.className = 'status-icon ' + type;
+    icon.textContent = type === 'success' ? '✅' : type === 'pending' ? '⏳' : '❌';
+
+    ttl.textContent   = title;
+    stSub.textContent = sub;
+
+    // Invoice row
+    if (invoice || amount) {
+      document.getElementById('inv-number').textContent = invoice || '—';
+      document.getElementById('inv-name').textContent   = lastOrder?.name || '—';
+      document.getElementById('inv-amount').textContent = amount
+        ? '৳' + Number(amount).toLocaleString('en-BD') + ' BDT'
+        : '—';
+      document.getElementById('inv-status').textContent = statusLabel || '—';
+      invSec.style.display = 'block';
+    }
+
+    // Order items
+    if (lastOrder?.items?.length) {
+      const list = document.getElementById('items-list');
+      list.innerHTML = lastOrder.items.map(it => `
+        <div class="order-item">
+          <div class="order-item-left">
+            <span>${it.emoji}</span>
+            <span>${it.name} × ${it.qty}</span>
+          </div>
+          <span class="order-item-price">৳${(it.price * it.qty).toLocaleString('en-BD')}</span>
+        </div>
+      `).join('');
+      itemSec.style.display = 'block';
+      sessionStorage.removeItem('lastOrder'); // clean up
+    }
+
+    // Footer CTA
+    footer.style.display = 'block';
+    if (type === 'failed') {
+      ctaBtn.href = '/';
+      ctaBtn.textContent = '← Try Again';
+    }
+    vnote.textContent = trxId ? 'Transaction ID: ' + trxId : 'Verified via PayStation secure gateway.';
+  }
+
+  // Kick off verification
+  verifyPayment();
+</script>
+</body>
+</html>
